@@ -71,6 +71,9 @@ class FetchRepo(Node):
             )
 
         # Convert dict to list of tuples: [(path, content), ...]
+        if result is None:
+            raise ValueError("Failed to fetch files - crawling function returned None")
+        
         files_list = list(result.get("files", {}).items())
         if len(files_list) == 0:
             raise (ValueError("Failed to fetch files"))
@@ -89,6 +92,7 @@ class IdentifyAbstractions(Node):
         use_cache = shared.get("use_cache", True)  # Get use_cache flag, default to True
         max_abstraction_num = shared.get("max_abstraction_num", 10)  # Get max_abstraction_num, default to 10
         abstractions_hints = shared.get("abstractions_hints", []) # List of abstractions to include, if empty, all abstractions will be included
+        feedback_content = shared.get("feedback_content")  # Get feedback from previous runs
 
         # Helper to create context from files, respecting limits (basic example)
         def create_llm_context(files_data):
@@ -115,7 +119,8 @@ class IdentifyAbstractions(Node):
             use_cache,
             max_abstraction_num,
             abstractions_hints,
-        )  # Return all parameters
+            feedback_content,
+        )  # Return all parameters including feedback
 
     def exec(self, prep_res):
         (
@@ -127,6 +132,7 @@ class IdentifyAbstractions(Node):
             use_cache,
             max_abstraction_num,
             abstractions_hints,
+            feedback_content,
         ) = prep_res  # Unpack all parameters
         print(f"Identifying abstractions using LLM...")
 
@@ -134,9 +140,28 @@ class IdentifyAbstractions(Node):
         language_instruction = ""
         name_lang_hint = ""
         desc_lang_hint = ""
+        
+        abstractions_hints_str = ""
         if len(abstractions_hints) > 0:
-            abstractions_hints_str = f"IMPORTANT: Specific abstractions to include: {abstractions_hints}"
+            abstractions_hints_str = f"IMPORTANT: Specific abstractions to include: {abstractions_hints}\n\n"
             max_abstraction_num = len(abstractions_hints)
+
+        # Add feedback section if available
+        feedback_section = ""
+        if feedback_content:
+            feedback_section = f"""
+CRITICAL: Learn from Previous Analysis Feedback
+The following feedback was provided from a previous analysis of this codebase. Please carefully consider these points to avoid repeating the same mistakes:
+
+{feedback_content}
+
+Based on this feedback, pay special attention to:
+- Avoiding hallucinated commands or concepts that don't exist in the codebase
+- Following proper naming conventions used in the code
+- Ensuring accuracy in descriptions and relationships
+- Including all important abstractions mentioned in the feedback
+
+"""
 
         if language.lower() != "english":
             language_instruction = f"IMPORTANT: Generate the `name` and `description` for each abstraction in **{language.capitalize()}** language. Do NOT use English for these fields.\n\n"
@@ -147,12 +172,10 @@ class IdentifyAbstractions(Node):
         prompt = f"""
 For the project `{project_name}`:
 
-Codebase Context:
+{feedback_section}Codebase Context:
 {context}
 
-{abstractions_hints_str}
-
-{language_instruction}Analyze the codebase context.
+{abstractions_hints_str}{language_instruction}Analyze the codebase context.
 Identify the top 5-{max_abstraction_num} core most important abstractions to help those new to the codebase.
 
 For each abstraction, provide:
@@ -255,6 +278,7 @@ class AnalyzeRelationships(Node):
         project_name = shared["project_name"]  # Get project name
         language = shared.get("language", "english")  # Get language
         use_cache = shared.get("use_cache", True)  # Get use_cache flag, default to True
+        feedback_content = shared.get("feedback_content")  # Get feedback from previous runs
 
         # Get the actual number of abstractions directly
         num_abstractions = len(abstractions)
@@ -293,7 +317,8 @@ class AnalyzeRelationships(Node):
             project_name,
             language,
             use_cache,
-        )  # Return use_cache
+            feedback_content,
+        )  # Return feedback_content
 
     def exec(self, prep_res):
         (
@@ -303,7 +328,8 @@ class AnalyzeRelationships(Node):
             project_name,
             language,
             use_cache,
-         ) = prep_res  # Unpack use_cache
+            feedback_content,
+         ) = prep_res  # Unpack use_cache and feedback_content
         print(f"Analyzing relationships using LLM...")
 
         # Add language instruction and hints only if not English
@@ -315,6 +341,24 @@ class AnalyzeRelationships(Node):
             lang_hint = f" (in {language.capitalize()})"
             list_lang_note = f" (Names might be in {language.capitalize()})"  # Note for the input list
 
+        # Add feedback section if available
+        feedback_section = ""
+        if feedback_content:
+            feedback_section = f"""
+CRITICAL: Learn from Previous Analysis Feedback
+The following feedback was provided from a previous analysis of this codebase. Please carefully consider these points to avoid repeating the same mistakes:
+
+{feedback_content}
+
+Based on this feedback, pay special attention to:
+- Avoiding hallucinated commands or concepts that don't exist in the codebase
+- Ensuring relationships are accurate and based on actual code interactions
+- Following proper naming conventions used in the code
+- Being precise about how different components actually interact in the codebase
+- Including all important relationships mentioned in the feedback
+
+"""
+
         prompt = f"""
 Based on the following abstractions and relevant code snippets from the project `{project_name}`:
 
@@ -324,7 +368,7 @@ List of Abstraction Indices and Names{list_lang_note}:
 Context (Abstractions, Descriptions, Code):
 {context}
 
-{language_instruction}Please provide:
+{feedback_section}{language_instruction}Please provide:
 1. A high-level `summary` of the project's main purpose and functionality in a few beginner-friendly sentences{lang_hint}. Use markdown formatting with **bold** and *italic* text to highlight important concepts.
 2. A list (`relationships`) describing the key interactions between these abstractions. For each relationship, specify:
     - `from_abstraction`: Index of the source abstraction (e.g., `0 # AbstractionName1`)
@@ -553,6 +597,7 @@ class WriteChapters(BatchNode):
         project_name = shared["project_name"]
         language = shared.get("language", "english")
         use_cache = shared.get("use_cache", True)  # Get use_cache flag, default to True
+        feedback_content = shared.get("feedback_content")  # Get feedback from previous runs
 
         # Get already written chapters to provide context
         # We store them temporarily during the batch run, not in shared memory yet
@@ -625,6 +670,7 @@ class WriteChapters(BatchNode):
                         "next_chapter": next_chapter,  # Add next chapter info (uses potentially translated name)
                         "language": language,  # Add language for multi-language support
                         "use_cache": use_cache, # Pass use_cache flag
+                        "feedback_content": feedback_content,  # Add feedback content
                         # previous_chapters_summary will be added dynamically in exec
                     }
                 )
@@ -648,6 +694,7 @@ class WriteChapters(BatchNode):
         project_name = item.get("project_name")
         language = item.get("language", "english")
         use_cache = item.get("use_cache", True) # Read use_cache from item
+        feedback_content = item.get("feedback_content")  # Get feedback content
         print(f"Writing chapter {chapter_num} for: {abstraction_name} using LLM...")
 
         # Prepare file context string from the map
@@ -684,6 +731,27 @@ class WriteChapters(BatchNode):
             )
             tone_note = f" (appropriate for {lang_cap} readers)"
 
+        # Add feedback section if available
+        feedback_section = ""
+        if feedback_content:
+            feedback_section = f"""
+
+CRITICAL: Learn from Previous Analysis Feedback
+The following feedback was provided from a previous analysis of this codebase. Please carefully consider these points to avoid repeating the same mistakes in this chapter:
+
+{feedback_content}
+
+Based on this feedback, pay special attention to:
+- Avoiding hallucinated commands, classes, or concepts that don't exist in the codebase
+- Following proper naming conventions used in the actual code (like `accountsSvc`, `accountsRepo`)
+- Ensuring code examples are realistic and follow the patterns seen in the actual codebase
+- Creating accurate diagrams that reflect the actual architecture, not invented layers
+- Being precise about how components actually work based on the code, not assumptions
+- Including accurate comments and struct descriptions
+- Avoiding pseudo-code that might mislead readers about the actual implementation
+
+"""
+
         prompt = f"""
 {language_instruction}Write a very beginner-friendly tutorial chapter (in Markdown format) for the project `{project_name}` about the concept: "{abstraction_name}". This is Chapter {chapter_num}.
 
@@ -700,7 +768,7 @@ Context from previous chapters{prev_summary_note}:
 
 Relevant Code Snippets (Code itself remains unchanged):
 {file_context_str if file_context_str else "No specific code snippets provided for this abstraction."}
-
+{feedback_section}
 Instructions for the chapter (Generate content in {language.capitalize()} unless specified otherwise):
 - Start with a clear heading (e.g., `# Chapter {chapter_num}: {abstraction_name}`). Use the provided concept name.
 

@@ -58,6 +58,8 @@ def main():
     parser.add_argument("--max-abstractions", type=int, default=10, help="Maximum number of abstractions to identify (default: 10)")
     # Add abstractions_hints parameter to control the abstractions to include
     parser.add_argument("--abstractions-hints", nargs="+", help="Abstractions to include (e.g. 'Event' 'Command' 'Aggregate'). Defaults to all abstractions if not specified.")
+    # Add feedback parameter to provide feedback from previous runs
+    parser.add_argument("--feedback", help="Path to markdown file with feedback from previous analysis runs to help improve results.")
 
     args = parser.parse_args()
 
@@ -67,6 +69,18 @@ def main():
         github_token = args.token or os.environ.get('GITHUB_TOKEN')
         if not github_token:
             print("Warning: No GitHub token provided. You might hit rate limits for public repositories.")
+
+    # Load feedback from file if provided
+    feedback_content = None
+    if args.feedback:
+        try:
+            with open(args.feedback, 'r', encoding='utf-8') as f:
+                feedback_content = f.read()
+            print(f"Loaded feedback from: {args.feedback}")
+        except FileNotFoundError:
+            print(f"Warning: Feedback file not found: {args.feedback}")
+        except Exception as e:
+            print(f"Warning: Could not read feedback file {args.feedback}: {e}")
 
     # Initialize the shared dictionary with inputs
     shared = {
@@ -91,6 +105,9 @@ def main():
         "abstractions_hints": args.abstractions_hints,
         "max_abstraction_num": args.max_abstractions if args.abstractions_hints is None else len(args.abstractions_hints),
 
+        # Add feedback content
+        "feedback_content": feedback_content,
+
         # Outputs will be populated by the nodes
         "files": [],
         "abstractions": [],
@@ -103,6 +120,8 @@ def main():
     # Display starting message with repository/directory and language
     print(f"Starting tutorial generation for: {args.repo or args.dir} in {args.language.capitalize()} language")
     print(f"LLM caching: {'Disabled' if args.no_cache else 'Enabled'}")
+    if feedback_content:
+        print(f"Using feedback from previous run to improve results")
 
     # Create the flow instance
     tutorial_flow = create_tutorial_flow()

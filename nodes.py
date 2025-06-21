@@ -88,6 +88,7 @@ class IdentifyAbstractions(Node):
         language = shared.get("language", "english")  # Get language
         use_cache = shared.get("use_cache", True)  # Get use_cache flag, default to True
         max_abstraction_num = shared.get("max_abstraction_num", 10)  # Get max_abstraction_num, default to 10
+        abstractions_hints = shared.get("abstractions_hints", []) # List of abstractions to include, if empty, all abstractions will be included
 
         # Helper to create context from files, respecting limits (basic example)
         def create_llm_context(files_data):
@@ -113,6 +114,7 @@ class IdentifyAbstractions(Node):
             language,
             use_cache,
             max_abstraction_num,
+            abstractions_hints,
         )  # Return all parameters
 
     def exec(self, prep_res):
@@ -124,6 +126,7 @@ class IdentifyAbstractions(Node):
             language,
             use_cache,
             max_abstraction_num,
+            abstractions_hints,
         ) = prep_res  # Unpack all parameters
         print(f"Identifying abstractions using LLM...")
 
@@ -131,6 +134,10 @@ class IdentifyAbstractions(Node):
         language_instruction = ""
         name_lang_hint = ""
         desc_lang_hint = ""
+        if len(abstractions_hints) > 0:
+            abstractions_hints_str = f"IMPORTANT: Specific abstractions to include: {abstractions_hints}"
+            max_abstraction_num = len(abstractions_hints)
+
         if language.lower() != "english":
             language_instruction = f"IMPORTANT: Generate the `name` and `description` for each abstraction in **{language.capitalize()}** language. Do NOT use English for these fields.\n\n"
             # Keep specific hints here as name/description are primary targets
@@ -142,6 +149,8 @@ For the project `{project_name}`:
 
 Codebase Context:
 {context}
+
+{abstractions_hints_str}
 
 {language_instruction}Analyze the codebase context.
 Identify the top 5-{max_abstraction_num} core most important abstractions to help those new to the codebase.

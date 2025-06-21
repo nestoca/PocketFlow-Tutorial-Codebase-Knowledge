@@ -56,6 +56,8 @@ def main():
     parser.add_argument("--no-cache", action="store_true", help="Disable LLM response caching (default: caching enabled)")
     # Add max_abstraction_num parameter to control the number of abstractions
     parser.add_argument("--max-abstractions", type=int, default=10, help="Maximum number of abstractions to identify (default: 10)")
+    # Add abstractions_hints parameter to control the abstractions to include
+    parser.add_argument("--abstractions-hints", nargs="+", help="Abstractions to include (e.g. 'Event' 'Command' 'Aggregate'). Defaults to all abstractions if not specified.")
 
     args = parser.parse_args()
 
@@ -86,7 +88,8 @@ def main():
         "use_cache": not args.no_cache,
         
         # Add max_abstraction_num parameter
-        "max_abstraction_num": args.max_abstractions,
+        "abstractions_hints": args.abstractions_hints,
+        "max_abstraction_num": args.max_abstractions if args.abstractions_hints is None else len(args.abstractions_hints),
 
         # Outputs will be populated by the nodes
         "files": [],

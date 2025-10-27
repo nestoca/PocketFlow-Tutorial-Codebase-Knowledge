@@ -104,8 +104,17 @@ def config_to_shared(config):
     # Get abstractions hints and calculate max abstractions
     abstractions_hints = analysis.get('abstractions_hints')
     max_abstractions = analysis.get('max_abstractions', 10)
+    
+    # Ensure abstractions_hints is never None, default to empty list
+    if abstractions_hints is None:
+        abstractions_hints = []
+    
+    # If specific abstractions are provided, use their count as max
     if abstractions_hints:
         max_abstractions = len(abstractions_hints)
+        print(f"✓ Using {len(abstractions_hints)} specific abstraction hints")
+    else:
+        print(f"✓ No specific abstraction hints provided, will identify up to {max_abstractions} abstractions")
     
     shared = {
         "repo_url": source.get('repo'),
@@ -164,10 +173,18 @@ def main():
         # Display starting message
         source_info = shared.get('repo_url') or shared.get('local_dir')
         language = shared.get('language', 'english')
-        print(f"Starting tutorial generation for: {source_info} in {language.capitalize()} language")
-        print(f"LLM caching: {'Enabled' if shared.get('use_cache') else 'Disabled'}")
-        if shared.get('feedback_content'):
-            print("Using feedback from previous run to improve results")
+        print(f"🚀 Starting tutorial generation for: {source_info} in {language.capitalize()} language")
+        print(f"📊 Configuration:")
+        print(f"   ├─ Project name: {shared.get('project_name', 'Auto-detected')}")
+        print(f"   ├─ Output directory: {shared.get('output_dir')}")
+        print(f"   ├─ Max file size: {shared.get('max_file_size'):,} bytes")
+        print(f"   ├─ LLM caching: {'Enabled' if shared.get('use_cache') else 'Disabled'}")
+        print(f"   ├─ Language: {language.capitalize()}")
+        print(f"   └─ Feedback from previous run: {'Yes' if shared.get('feedback_content') else 'No'}")
+        
+        include_count = len(shared.get('include_patterns', []))
+        exclude_count = len(shared.get('exclude_patterns', []))
+        print(f"📁 File patterns: {include_count} include, {exclude_count} exclude")
         
         # Create the flow instance
         tutorial_flow = create_tutorial_flow()

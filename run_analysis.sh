@@ -8,14 +8,14 @@ source .venv/bin/activate
 
 # Validate configuration before running
 echo "Validating configuration..."
-python main.py configs/corebanking/config.yaml --validate-only
+python main.py "$1" --validate-only
 
 if [ $? -eq 0 ]; then
     echo "Configuration is valid. Running analysis..."
-    python main.py configs/corebanking/config.yaml
+    python main.py "$1"
 else
     echo "Configuration validation failed. Please check the config file."
     exit 1
 fi
 
-echo "Corebanking analysis completed!" 
+echo "Done" 

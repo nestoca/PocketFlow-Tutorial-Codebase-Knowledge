@@ -77,7 +77,14 @@ class FetchRepo(Node):
         files_list = list(result.get("files", {}).items())
         if len(files_list) == 0:
             raise (ValueError("Failed to fetch files"))
-        print(f"Fetched {len(files_list)} files.")
+        print(f"✅ Fetched {len(files_list)} files successfully")
+        
+        # Show some stats about the files
+        total_size = sum(len(content) for _, content in files_list)
+        avg_size = total_size // len(files_list) if files_list else 0
+        print(f"   ├─ Total content size: {total_size:,} characters")
+        print(f"   ├─ Average file size: {avg_size:,} characters")
+        print(f"   └─ Largest file: {max((len(content) for _, content in files_list), default=0):,} characters")
         return files_list
 
     def post(self, shared, prep_res, exec_res):
@@ -134,21 +141,38 @@ class IdentifyAbstractions(Node):
             abstractions_hints,
             feedback_content,
         ) = prep_res  # Unpack all parameters
-        print(f"Identifying abstractions using LLM...")
+        
+        print(f"🔍 Identifying abstractions using LLM...")
+        print(f"   ├─ Project: {project_name}")
+        print(f"   ├─ Files analyzed: {file_count}")
+        print(f"   ├─ Language: {language}")
+        print(f"   ├─ Max abstractions: {max_abstraction_num}")
+        print(f"   ├─ Cache enabled: {use_cache}")
+        print(f"   ├─ Feedback provided: {'Yes' if feedback_content else 'No'}")
+        print(f"   └─ Abstraction hints: {len(abstractions_hints) if abstractions_hints else 0} provided")
 
         # Add language instruction and hints only if not English
         language_instruction = ""
         name_lang_hint = ""
         desc_lang_hint = ""
         
+        # Safety check for abstractions_hints
+        if abstractions_hints is None:
+            abstractions_hints = []
+            print("Warning: abstractions_hints was None, defaulting to empty list")
+        
         abstractions_hints_str = ""
         if len(abstractions_hints) > 0:
+            print(f"✓ Using specific abstraction hints: {abstractions_hints}")
             abstractions_hints_str = f"IMPORTANT: Specific abstractions to include: {abstractions_hints}\n\n"
             max_abstraction_num = len(abstractions_hints)
+        else:
+            print(f"✓ No specific abstraction hints, identifying up to {max_abstraction_num} abstractions")
 
         # Add feedback section if available
         feedback_section = ""
         if feedback_content:
+            print(f"📝 Including feedback from previous analysis run")
             feedback_section = f"""
 CRITICAL: Learn from Previous Analysis Feedback
 The following feedback was provided from a previous analysis of this codebase. Please carefully consider these points to avoid repeating the same mistakes:
@@ -205,9 +229,12 @@ Format the output as a YAML list of dictionaries:
     - 5 # path/to/another.js
 # ... up to {max_abstraction_num} abstractions
 ```"""
+        print(f"🤖 Calling LLM for abstraction identification (attempt {self.cur_retry + 1})")
         response = call_llm(prompt, use_cache=(use_cache and self.cur_retry == 0))  # Use cache only if enabled and not retrying
+        print(f"✅ Received LLM response ({len(response)} characters)")
 
         # --- Validation ---
+        print(f"🔍 Parsing and validating LLM response...")
         yaml_str = response.strip().split("```yaml")[1].split("```")[0].strip()
         abstractions = yaml.safe_load(yaml_str)
 
@@ -260,7 +287,10 @@ Format the output as a YAML list of dictionaries:
                 }
             )
 
-        print(f"Identified {len(validated_abstractions)} abstractions.")
+        print(f"✅ Successfully identified {len(validated_abstractions)} abstractions:")
+        for i, abstr in enumerate(validated_abstractions):
+            file_count = len(abstr.get('files', []))
+            print(f"   {i+1}. {abstr['name']} ({file_count} files)")
         return validated_abstractions
 
     def post(self, shared, prep_res, exec_res):

@@ -1,30 +1,21 @@
 #!/bin/bash
 
 # Shell script to analyze the local corebanking repository
-# with specific abstraction hints and feedback from previous analysis
+# using YAML configuration file
 
 echo "Starting corebanking tutorial generation..."
+source .venv/bin/activate
 
-python main.py \
-    --dir "/Users/louis-davidcoulombe/github/corebanking" \
-    --name "corebanking" \
-    --output "nesto/corebanking/analysis_output" \
-    --abstractions-hints \
-        "Event" \
-        "Command" \
-        "Aggregate" \
-        "Repository" \
-        "API Handler" \
-        "Core Facade" \
-        "Service" \
-        "Consumer" \
-        "Product Engine" \
-        "Simulation Services and Repositories" \
-        "products" \
-        "parameters" \
-        "customers" \
-    --feedback "nesto/corebanking/review.md" \
-    --language "english" \
-    --max-size 150000
+# Validate configuration before running
+echo "Validating configuration..."
+python main.py configs/corebanking/config.yaml --validate-only
+
+if [ $? -eq 0 ]; then
+    echo "Configuration is valid. Running analysis..."
+    python main.py configs/corebanking/config.yaml
+else
+    echo "Configuration validation failed. Please check the config file."
+    exit 1
+fi
 
 echo "Corebanking analysis completed!" 

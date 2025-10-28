@@ -1,3 +1,231 @@
+# Docker Usage Guide
+
+This guide explains how to build, push, and run the PocketFlow Tutorial application using Docker and the provided Makefile.
+
+## Quick Start
+
+1. **Build the Docker image:**
+   ```bash
+   make build
+   ```
+
+2. **Run with a configuration file:**
+   ```bash
+   make run CONFIG_FILE=configs/example_config.yaml
+   ```
+
+3. **Validate configuration without running:**
+   ```bash
+   make validate CONFIG_FILE=configs/my_config.yaml
+   ```
+
+## Configuration
+
+The Makefile supports several configurable variables:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `IMAGE_NAME` | `pocketflow-tutorial` | Docker image name |
+| `IMAGE_TAG` | `latest` | Docker image tag |
+| `REGISTRY` | `docker.io` | Docker registry URL |
+| `REGISTRY_USER` | `your-username` | Registry username |
+| `CONFIG_FILE` | `configs/example_config.yaml` | Path to YAML config file |
+| `OUTPUT_DIR` | `./output` | Local output directory |
+| `MOUNT_DIR` | `./mount` | Local directory to mount for source code |
+
+## Available Commands
+
+### Build Commands
+- `make build` - Build the Docker image
+- `make build-dev` - Build with development target
+- `make push` - Build and push to registry
+- `make tag-and-push VERSION=1.0.0` - Tag with version and push
+
+### Run Commands
+- `make run` - Run with config file
+- `make run-local` - Run with local directory mounting
+- `make run-debug` - Run in debug mode with interactive shell
+- `make shell` - Open interactive shell in container
+
+### Utility Commands
+- `make validate` - Validate configuration file
+- `make clean` - Clean up Docker resources
+- `make lint` - Run code quality checks
+- `make test` - Run tests
+- `make logs` - Show container logs
+- `make help` - Show help message
+
+## Usage Examples
+
+### Basic Usage
+```bash
+# Build and run with default config
+make build
+make run
+
+# Use custom configuration
+make run CONFIG_FILE=configs/corebanking.yaml
+
+# Validate configuration before running
+make validate CONFIG_FILE=configs/my_config.yaml
+```
+
+### Working with Local Directories
+```bash
+# Mount a local source directory
+make run-local CONFIG_FILE=configs/my_config.yaml MOUNT_DIR=/path/to/source/code
+
+# The mounted directory will be available at /app/mount inside the container
+```
+
+### Registry Operations
+```bash
+# Push to Docker Hub
+make push REGISTRY_USER=myusername
+
+# Push to a different registry
+make push REGISTRY=ghcr.io REGISTRY_USER=myusername
+
+# Tag and push a specific version
+make tag-and-push VERSION=1.2.3 REGISTRY_USER=myusername
+```
+
+### Development Workflow
+```bash
+# Development setup
+make dev
+
+# Debug a configuration issue
+make run-debug CONFIG_FILE=configs/problematic.yaml
+
+# Check logs from the last run
+make logs
+
+# Clean up when done
+make clean
+```
+
+## File Mounting
+
+The Makefile automatically mounts several directories:
+
+1. **Configuration file**: Mounted as read-only at `/app/config.yaml`
+2. **Output directory**: Mounted at `/app/output` for results
+3. **Environment file**: `.env` mounted as read-only at `/app/.env`
+4. **Source directory** (when using `run-local`): Mounted at `/app/mount`
+
+## Configuration File Format
+
+Your YAML configuration file should follow this structure:
+
+```yaml
+source:
+  repo: "https://github.com/user/repo"  # OR
+  local_dir: "/app/mount"               # for local directories
+
+project:
+  name: "My Project"
+  output_dir: "output"
+  language: "english"
+
+file_processing:
+  max_file_size: 100000
+  include_patterns:
+    - "*.py"
+    - "*.js"
+    - "*.md"
+  exclude_patterns:
+    - "*test*"
+    - "node_modules/*"
+
+analysis:
+  max_abstractions: 10
+  abstractions_hints:
+    - "authentication"
+    - "data processing"
+
+llm:
+  use_cache: true
+
+github:
+  token: "${GITHUB_TOKEN}"  # Will use environment variable
+```
+
+## Environment Variables
+
+Create a `.env` file in your project root:
+
+```bash
+# .env
+GITHUB_TOKEN=your_github_token_here
+OPENAI_API_KEY=your_openai_api_key_here
+# Add other required environment variables
+```
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Configuration file not found**
+   ```bash
+   make run CONFIG_FILE=path/to/your/config.yaml
+   ```
+
+2. **Permission denied for output directory**
+   ```bash
+   sudo chown -R $USER:$USER ./output
+   ```
+
+3. **Docker build fails**
+   ```bash
+   make clean
+   make build DOCKER_BUILD_ARGS="--no-cache --pull"
+   ```
+
+4. **Registry push fails**
+   ```bash
+   docker login
+   make push REGISTRY_USER=your_actual_username
+   ```
+
+### Debug Mode
+
+Use debug mode to troubleshoot issues:
+
+```bash
+make run-debug CONFIG_FILE=configs/my_config.yaml
+
+# Inside the container:
+python main.py config.yaml --validate-only
+python main.py config.yaml
+```
+
+## Advanced Usage
+
+### Custom Docker Build Args
+```bash
+make build DOCKER_BUILD_ARGS="--build-arg PYTHON_VERSION=3.11"
+```
+
+### Multiple Configurations
+```bash
+# Process multiple projects
+for config in configs/*.yaml; do
+    echo "Processing $config"
+    make run CONFIG_FILE="$config"
+done
+```
+
+### CI/CD Integration
+```bash
+# In your CI pipeline
+make build
+make test
+make push REGISTRY_USER=$CI_REGISTRY_USER
+```
+
+
+
 <h1 align="center">Turns Codebase into Easy Tutorial with AI</h1>
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
